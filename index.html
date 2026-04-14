@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>口味级库存管理系统 - 精细分类</title>
+<style>
+* {
+    box-sizing: border-box;
+    font-family: system-ui, 'Segoe UI', 'Roboto', sans-serif;
+}
+body {
+    background: #eef2f5;
+    margin: 0;
+    padding: 20px;
+}
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+h2 {
+    color: #1e466e;
+    border-left: 5px solid #2c7da0;
+    padding-left: 15px;
+    font-weight: 600;
+    margin-top: 0;
+}
+h3 {
+    color: #2c3e4e;
+    margin: 20px 0 12px 0;
+    font-weight: 500;
+    border-bottom: 2px solid #cbdde6;
+    padding-bottom: 5px;
+}
+.card {
+    background: white;
+    border-radius: 24px;
+    padding: 18px 22px;
+    margin-bottom: 28px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    border-radius: 16px;
+    overflow: hidden;
+    background: white;
+}
+th {
+    background-color: #e9f0f5;
+    color: #1f3b4c;
+    font-weight: 600;
+    padding: 12px 8px;
+}
+td, th {
+    border: 1px solid #d4e0e8;
+    padding: 10px 8px;
+    vertical-align: middle;
+}
+input, select {
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    font-size: 0.85rem;
+    width: 100%;
+    max-width: 130px;
+}
+input:focus, select:focus {
+    outline: none;
+    border-color: #2c7da0;
+    box-shadow: 0 0 0 2px rgba(44,125,160,0.2);
+}
+button {
+    background: #2c7da0;
+    border: none;
+    color: white;
+    padding: 8px 18px;
+    border-radius: 40px;
+    font-weight: 500;
+    cursor: pointer;
+    margin: 5px 8px 5px 0;
+    transition: 0.2s;
+    font-size: 0.85rem;
+}
+button:hover {
+    background: #1f5e7e;
+    transform: translateY(-1px);
+}
+.btn-danger {
+    background: #bc6c25;
+}
+.btn-danger:hover {
+    background: #9c5518;
+}
+.btn-outline {
+    background: white;
+    border: 1px solid #2c7da0;
+    color: #2c7da0;
+}
+.low-stock {
+    color: #d9534f;
+    font-weight: bold;
+    background-color: #fff5f5;
+}
+.badge {
+    background: #f0ad4e;
+    color: white;
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    margin-left: 6px;
+}
+.flex-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-top: 12px;
+}
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: #2c7da0;
+    color: white;
+    padding: 8px 18px;
+    border-radius: 40px;
+    font-size: 14px;
+    z-index: 9999;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: opacity 0.3s;
+}
+.small-note {
+    font-size: 12px;
+    color: #5f7f9c;
+    margin-top: 10px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <h2>🧂 口味级库存系统 · 按细分口味独立管理</h2>
+    <p class="small-note">✅ 每个口味独立库存，进货直接增加对应口味；单品销售可选择口味；套装自动智能扣减口味库存（优先从库存多的口味扣除）。所有数据自动保存。</p>
+
+    <!-- 套装 & 单品销售区域 -->
+    <div class="card">
+        <h3>📦 套装销售</h3>
+        <table style="width: auto; min-width: 280px;">
+            <tr><th>套装名称</th><th>销售数量</th></tr>
+            <tr><td>🐾 17件套</td><td><input type="number" id="set17" min="0" value="0"></td></tr>
+            <tr><td>🐾 10件套</td><td><input type="number" id="set10" min="0" value="0"></td></tr>
+        </table>
+
+        <h3>🍽️ 单品销售（支持选择具体口味）</h3>
+        <table id="singleSalesTable">
+            <thead>
+                <tr><th>品类</th><th>口味</th><th>销售数量</th><th>操作</th></tr>
+            </thead>
+            <tbody id="singleSalesBody"></tbody>
+        </table>
+        <button id="addSingleRowBtn" class="btn-outline">+ 添加单品销售项</button>
+        
+        <div class="flex-row">
+            <button id="previewBtn">🔍 预览剩余 (模拟扣减)</button>
+            <button id="confirmDeductBtn" class="btn-danger">✅ 确认出库 (实际扣减库存)</button>
+            <button id="clearSalesBtn">🗑️ 清空所有销售项</button>
+        </div>
+        <p class="small-note">💡 套装扣减规则：自动从该品类下各口味库存中按“库存多优先”原则扣除，若某口味不足则继续扣其他口味。单品销售需手动选择口味。</p>
+    </div>
+
+    <!-- 进货区域 (支持口味细化) -->
+    <div class="card">
+        <h3>📦 多口味进货 (直接增加对应口味库存)</h3>
+        <table id="purchaseTable">
+            <thead><tr><th>品类</th><th>口味</th><th>进货数量</th></tr></thead>
+            <tbody id="purchaseBody"></tbody>
+        </table>
+        <button id="addStockBtn">➕ 确认进货 (累加至各口味)</button>
+    </div>
+
+    <!-- 库存总览 (每个口味独立展示 + 自由编辑) -->
+    <div class="card">
+        <h3>📋 当前库存明细 (口味级) · 支持直接修改</h3>
+        <table id="inventoryTable">
+            <thead><tr><th>品类</th><th>口味</th><th>当前库存</th><th>✏️ 修改库存</th></tr></thead>
+            <tbody id="inventoryBody"></tbody>
+        </table>
+        <p class="small-note">✔️ 点击「更新」按钮即可自由修改该口味库存，支持盘点报损。</p>
+    </div>
+
+    <!-- 剩余预览区域 -->
+    <div class="card">
+        <h3>📊 模拟剩余库存 (基于当前销售项预览)</h3>
+        <table id="previewTable">
+            <thead><tr><th>品类-口味</th><th>模拟剩余</th></tr></thead>
+            <tbody id="previewBody"><tr><td colspan="2">点击「预览剩余」查看</td></tr></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // ---------- 口味与品类定义 ----------
+    // 所有库存条目格式: 品类_口味 (唯一key)
+    const flavorMapping = {
+        // 猫条口味
+        "猫条": ["三文鱼", "鸡肉猫草", "鸽肉"],
+        // 猫饭口味
+        "猫饭": ["树莓", "和牛羊肉"],
+        // 湿粮包口味
+        "湿粮包": ["鸽肉", "兔肉", "鹌鹑"],
+        // 零食罐头口味
+        "零食罐头": ["南瓜", "鸡丝", "金枪鱼"],
+        // 无口味的单品 (每日慕斯, 主食餐盒, 鸡肉干) 作为独立库存条目
+        "每日慕斯": ["标准"],
+        "主食餐盒": ["标准"],
+        "鸡肉干": ["标准"]
+    };
+
+    // 生成所有库存键: 例如 "猫条_三文鱼", "每日慕斯_标准"
+    function getAllStockKeys() {
+        let keys = [];
+        for (let [category, flavors] of Object.entries(flavorMapping)) {
+            for (let flavor of flavors) {
+                keys.push(`${category}_${flavor}`);
+            }
+        }
+        return keys;
+    }
+
+    // 初始化库存结构
+    let stock = {};
+    function initStock() {
+        const defaultStock = {};
+        getAllStockKeys().forEach(key => { defaultStock[key] = 0; });
+        return defaultStock;
+    }
+
+    // 加载已有库存或初始化
+    let stored = localStorage.getItem("flavor_stock");
+    if (stored) {
+        try {
+            stock = JSON.parse(stored);
+            // 确保所有口味都存在 (防止新增口味)
+            getAllStockKeys().forEach(key => { if (stock[key] === undefined) stock[key] = 0; });
+        } catch(e) { stock = initStock(); }
+    } else {
+        stock = initStock();
+    }
+
+    // 套装定义 (品类 -> 数量，不区分口味)
+    const kits = {
+        "17件套": { "猫条": 3, "零食罐头": 3, "主食餐盒": 3, "湿粮包": 3, "每日慕斯": 2, "鸡肉干": 1, "猫饭": 2 },
+        "10件套": { "每日慕斯": 1, "猫饭": 2, "零食罐头": 1, "湿粮包": 1, "主食餐盒": 1, "猫条": 3 }
+    };
+
+    // ---------- 辅助函数 ----------
+    function saveToLocal() {
+        localStorage.setItem("flavor_stock", JSON.stringify(stock));
+        localStorage.setItem("flavor_inputs", JSON.stringify(getAllInputValues()));
+    }
+
+    function getAllInputValues() {
+        let data = {};
+        document.querySelectorAll("input, select").forEach(el => {
+            if (el.id) data[el.id] = el.value;
+            else if (el.name) data[el.name] = el.value;
+        });
+        return data;
+    }
+
+    function loadInputValues() {
+        const saved = localStorage.getItem("flavor_inputs");
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                for (let id in data) {
+                    let el = document.getElementById(id);
+                    if (el) el.value = data[id];
+                }
+            } catch(e) {}
+        }
+    }
+
+    function showToast(msg, type = "info") {
+        let toast = document.getElementById("dynamicToast");
+        if (!toast) {
+            const div = document.createElement("div");
+            div.id = "dynamicToast";
+            div.className = "toast";
+            document.body.appendChild(div);
+            toast = div;
+        }
+        toast.style.backgroundColor = type === "success" ? "#2c7da0" : (type === "error" ? "#bc6c25" : "#5f7f9c");
+        toast.innerText = msg;
+        toast.style.opacity = "1";
+        setTimeout(() => {
+            toast.style.opacity = "0";
+            setTimeout(() => toast.remove(), 300);
+        }, 2000);
+    }
+
+    // 渲染库存总览表格 (口味级 + 自由编辑)
+    function renderInventoryTable() {
+        const tbody = document.getElementById("inventoryBody");
+        if (!tbody) return;
+        let html = "";
+        for (let [category, flavors] of Object.entries(flavorMapping)) {
+            for (let flavor of flavors) {
+                const key = `${category}_${flavor}`;
+                const qty = stock[key] || 0;
+                const lowClass = (qty < 20 && qty > 0) ? "low-stock" : (qty <= 0 ? "low-stock" : "");
+                html += `
+                    <tr>
+                        <td>${category}</td>
+                        <td>${flavor}</td>
+                        <td class="${lowClass}">${qty} ${qty < 5 ? '⚠️紧急' : (qty < 20 ? '⚠️偏低' : '')}</td>
+                        <td style="display: flex; gap: 8px; align-items:center;">
+                            <input type="number" id="edit_${key.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}" value="${qty}" step="1" min="0" style="width:100px;">
+                            <button class="update-flavor-btn" data-category="${category}" data-flavor="${flavor}">更新</button>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+        tbody.innerHTML = html;
+    }
+
+    // 更新单个口味库存
+    function updateFlavorStock(category, flavor, newValue) {
+        const key = `${category}_${flavor}`;
+        let val = parseInt(newValue);
+        if (isNaN(val)) val = 0;
+        if (val < 0) val = 0;
+        stock[key] = val;
+        renderInventoryTable();
+        saveToLocal();
+        showToast(`${category} - ${flavor} 库存已改为 ${val}`, "success");
+        // 重新渲染进货表格与单品销售表格 (保持下拉列表最新，不影响)
+        renderPurchaseTable();
+        renderSingleSalesSelects();
+    }
+
+    // 渲染进货表格 (动态，展示所有口味)
+    function renderPurchaseTable() {
+        const tbody = document.getElementById("purchaseBody");
+        if (!tbody) return;
+        let html = "";
+        for (let [category, flavors] of Object.entries(flavorMapping)) {
+            for (let flavor of flavors) {
+                const inputId = `purchase_${category}_${flavor}`.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_');
+                html += `
+                    <tr>
+                        <td>${category}</td>
+                        <td>${flavor}</td>
+                        <td><input type="number" id="${inputId}" min="0" value="0" style="width:110px;"></td>
+                    </tr>
+                `;
+            }
+        }
+        tbody.innerHTML = html;
+    }
+
+    // 进货确认: 累加所有进货口味数量
+    function confirmPurchase() {
+        for (let [category, flavors] of Object.entries(flavorMapping)) {
+            for (let flavor of flavors) {
+                const inputId = `purchase_${category}_${flavor}`.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_');
+                const inputEl = document.getElementById(inputId);
+                if (inputEl) {
+                    let addQty = parseInt(inputEl.value) || 0;
+                    if (addQty > 0) {
+                        const key = `${category}_${flavor}`;
+                        stock[key] = (stock[key] || 0) + addQty;
+                        inputEl.value = "0";
+                    }
+                }
+            }
+        }
+        renderInventoryTable();
+        saveToLocal();
+        showToast("进货完成，所有口味库存已更新", "success");
+    }
+
+    // 单品销售动态行管理
+    let singleSalesRows = []; // 存储 { category, flavor, quantity }
+    function renderSingleSalesTable() {
+        const tbody = document.getElementById("singleSalesBody");
+        if (!tbody) return;
+        if (singleSalesRows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#aaa;">点击「+ 添加单品销售项」</td></tr>`;
+            return;
+        }
+        let html = "";
+        singleSalesRows.forEach((row, idx) => {
+            // 获取该品类的所有可用口味
+            const flavors = flavorMapping[row.category] || ["标准"];
+            html += `
+                <tr>
+                    <td>
+                        <select id="single_cat_${idx}" class="single-cat-select" data-idx="${idx}" style="min-width:100px;">
+                            ${Object.keys(flavorMapping).map(cat => `<option value="${cat}" ${cat === row.category ? 'selected' : ''}>${cat}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td>
+                        <select id="single_flavor_${idx}" class="single-flavor-select" data-idx="${idx}">
+                            ${flavors.map(f => `<option value="${f}" ${f === row.flavor ? 'selected' : ''}>${f}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td><input type="number" id="single_qty_${idx}" min="0" value="${row.quantity}" style="width:100px;"></td>
+                    <td><button class="remove-single-row" data-idx="${idx}" style="background:#d9534f; padding:4px 12px;">删除</button></td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+        // 绑定动态事件
+        document.querySelectorAll(".single-cat-select").forEach(sel => {
+            sel.addEventListener("change", (e) => {
+                const idx = parseInt(sel.getAttribute("data-idx"));
+                const newCat = sel.value;
+                singleSalesRows[idx].category = newCat;
+                const newFlavors = flavorMapping[newCat] || ["标准"];
+                singleSalesRows[idx].flavor = newFlavors[0];
+                renderSingleSalesTable(); // 重新渲染更新下拉
+            });
+        });
+        document.querySelectorAll(".single-flavor-select").forEach(sel => {
+            sel.addEventListener("change", (e) => {
+                const idx = parseInt(sel.getAttribute("data-idx"));
+                singleSalesRows[idx].flavor = sel.value;
+            });
+        });
+        document.querySelectorAll("[id^='single_qty_']").forEach(inp => {
+            const idx = parseInt(inp.id.split('_').pop());
+            inp.addEventListener("input", (e) => {
+                singleSalesRows[idx].quantity = parseInt(e.target.value) || 0;
+            });
+        });
+        document.querySelectorAll(".remove-single-row").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                const idx = parseInt(btn.getAttribute("data-idx"));
+                singleSalesRows.splice(idx, 1);
+                renderSingleSalesTable();
+            });
+        });
+    }
+
+    // 辅助: 重新渲染单品销售下拉 (不丢失数据)
+    function renderSingleSalesSelects() { renderSingleSalesTable(); }
+
+    // 获取当前所有销售需求 (套装 + 单品) 返回 Map: key(品类_口味) -> 需要扣减数量
+    function calculateTotalDemand() {
+        const demand = new Map(); // key: "品类_口味" -> 数量
+        
+        // 1. 套装需求: 套装只指定品类，不指定口味，我们需要按口味分配策略: 按库存比例自动分配 (优先扣库存多的口味)
+        const set17 = parseInt(document.getElementById("set17")?.value) || 0;
+        const set10 = parseInt(document.getElementById("set10")?.value) || 0;
+        const kitDemandByCategory = {}; // { "猫条": 总数, "猫饭":总数 ... }
+        for (let kit in kits) {
+            let qty = kit === "17件套" ? set17 : set10;
+            if (qty > 0) {
+                for (let [category, needPerSet] of Object.entries(kits[kit])) {
+                    kitDemandByCategory[category] = (kitDemandByCategory[category] || 0) + needPerSet * qty;
+                }
+            }
+        }
+        // 将品类总需求拆解到具体口味 (智能分配: 按照库存量从多到少扣除)
+        for (let [category, totalNeed] of Object.entries(kitDemandByCategory)) {
+            if (totalNeed <= 0) continue;
+            const flavors = flavorMapping[category];
+            if (!flavors) {
+                // 无口味单品如每日慕斯，直接按单品key处理
+                const key = `${category}_标准`;
+                demand.set(key, (demand.get(key) || 0) + totalNeed);
+                continue;
+            }
+            // 获取当前各口味库存快照
+            let flavorStock = flavors.map(f => ({ flavor: f, stock: stock[`${category}_${f}`] || 0 }));
+            // 按库存降序排序，优先扣库存多的口味
+            flavorStock.sort((a,b) => b.stock - a.stock);
+            let remaining = totalNeed;
+            for (let fs of flavorStock) {
+                if (remaining <= 0) break;
+                let take = Math.min(remaining, fs.stock);
+                if (take > 0) {
+                    const key = `${category}_${fs.flavor}`;
+                    demand.set(key, (demand.get(key) || 0) + take);
+                    remaining -= take;
+                }
+            }
+            if (remaining > 0) {
+                // 库存不足也把剩余需求记录为需要扣减 (会在检查时报错)
+                for (let fs of flavorStock) {
+                    if (remaining <= 0) break;
+                    const key = `${category}_${fs.flavor}`;
+                    demand.set(key, (demand.get(key) || 0) + remaining);
+                    remaining = 0;
+                }
+            }
+        }
+
+        // 2. 单品销售需求 (用户已指定口味)
+        for (let row of singleSalesRows) {
+            if (row.quantity > 0) {
+                const key = `${row.category}_${row.flavor}`;
+                demand.set(key, (demand.get(key) || 0) + row.quantity);
+            }
+        }
+        return demand;
+    }
+
+    // 预览剩余 (不修改库存)
+    function previewRemaining() {
+        const demand = calculateTotalDemand();
+        const previewMap = new Map();
+        // 复制当前库存
+        for (let key in stock) {
+            previewMap.set(key, stock[key]);
+        }
+        for (let [key, need] of demand.entries()) {
+            const current = previewMap.get(key) || 0;
+            previewMap.set(key, current - need);
+        }
+        // 渲染预览表格
+        const tbody = document.getElementById("previewBody");
+        if (!tbody) return;
+        let html = "";
+        let insufficient = false;
+        for (let [category, flavors] of Object.entries(flavorMapping)) {
+            for (let flavor of flavors) {
+                const key = `${category}_${flavor}`;
+                const remain = previewMap.get(key) || 0;
+                const cls = remain < 0 ? "low-stock" : (remain < 20 ? "low-stock" : "");
+                if (remain < 0) insufficient = true;
+                html += `<tr class="${cls}"><td>${category} - ${flavor}</td><td><strong>${remain}</strong> ${remain<0 ? '⚠️短缺' : (remain<20 ? '⚠️低库存' : '')}</td></tr>`;
+            }
+        }
+        // 展示无口味单品
+        const plainItems = ["每日慕斯", "主食餐盒", "鸡肉干"];
+        for (let item of plainItems) {
+            const key = `${item}_标准`;
+            const remain = previewMap.get(key) || 0;
+            const cls = remain < 0 ? "low-stock" : (remain < 20 ? "low-stock" : "");
+            if (remain < 0) insufficient = true;
+            html += `<tr class="${cls}"><td>${item}</td><td><strong>${remain}</strong> ${remain<0 ? '⚠️短缺' : (remain<20 ? '⚠️低库存' : '')}</td></tr>`;
+        }
+        tbody.innerHTML = html;
+        if (insufficient) showToast("预览发现库存不足，请减少销售或进货", "error");
+        else showToast("预览完成，未实际扣减库存", "info");
+    }
+
+    // 确认销售出库 (真正扣减)
+    function confirmDeduct() {
+        const demand = calculateTotalDemand();
+        // 检查库存是否足够
+        let insufficientItems = [];
+        for (let [key, need] of demand.entries()) {
+            const current = stock[key] || 0;
+            if (current < need) {
+                insufficientItems.push(`${key} (需${need}, 剩${current})`);
+            }
+        }
+        if (insufficientItems.length > 0) {
+            alert(`❌ 库存不足，无法出库！\n缺少：${insufficientItems.join(", ")}\n请进货或调整销售数量。`);
+            return;
+        }
+        // 执行扣减
+        for (let [key, need] of demand.entries()) {
+            stock[key] = (stock[key] || 0) - need;
+        }
+        // 清空套装输入框
+        document.getElementById("set17").value = "0";
+        document.getElementById("set10").value = "0";
+        // 清空单品销售列表
+        singleSalesRows = [];
+        renderSingleSalesTable();
+        // 刷新库存表格
+        renderInventoryTable();
+        saveToLocal();
+        showToast("✅ 销售出库成功！所有相关口味库存已扣减", "success");
+        // 清空预览区域
+        document.getElementById("previewBody").innerHTML = `<tr><td colspan="2">销售完成，点击预览查看最新库存</td></tr>`;
+    }
+
+    function clearAllSales() {
+        document.getElementById("set17").value = "0";
+        document.getElementById("set10").value = "0";
+        singleSalesRows = [];
+        renderSingleSalesTable();
+        showToast("已清空所有销售项", "info");
+        document.getElementById("previewBody").innerHTML = `<tr><td colspan="2">已清空，点击预览重新计算</td></tr>`;
+        saveToLocal();
+    }
+
+    // 添加单品销售行
+    function addSingleRow() {
+        const firstCat = Object.keys(flavorMapping)[0];
+        const firstFlavor = flavorMapping[firstCat][0];
+        singleSalesRows.push({ category: firstCat, flavor: firstFlavor, quantity: 0 });
+        renderSingleSalesTable();
+    }
+
+    // 绑定所有全局事件
+    function bindEvents() {
+        document.getElementById("addStockBtn")?.addEventListener("click", confirmPurchase);
+        document.getElementById("previewBtn")?.addEventListener("click", previewRemaining);
+        document.getElementById("confirmDeductBtn")?.addEventListener("click", confirmDeduct);
+        document.getElementById("clearSalesBtn")?.addEventListener("click", clearAllSales);
+        document.getElementById("addSingleRowBtn")?.addEventListener("click", addSingleRow);
+        
+        // 自由编辑库存按钮委托
+        document.body.addEventListener("click", (e) => {
+            if (e.target.classList && e.target.classList.contains("update-flavor-btn")) {
+                const category = e.target.getAttribute("data-category");
+                const flavor = e.target.getAttribute("data-flavor");
+                const key = `${category}_${flavor}`;
+                const inputId = `edit_${key.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}`;
+                const inputEl = document.getElementById(inputId);
+                if (inputEl) {
+                    updateFlavorStock(category, flavor, inputEl.value);
+                }
+            }
+        });
+
+        // 保存所有输入变化
+        document.querySelectorAll("input, select").forEach(el => {
+            el.addEventListener("change", () => saveToLocal());
+        });
+    }
+
+    // 跨标签页同步
+    window.addEventListener("storage", (e) => {
+        if (e.key === "flavor_stock") {
+            try {
+                const newStock = JSON.parse(e.newValue);
+                if (newStock) {
+                    stock = newStock;
+                    renderInventoryTable();
+                    renderPurchaseTable();
+                    renderSingleSalesTable();
+                    showToast("其他页面修改了库存，已同步", "info");
+                }
+            } catch(er) {}
+        }
+    });
+
+    // 初始化页面
+    function init() {
+        renderInventoryTable();
+        renderPurchaseTable();
+        renderSingleSalesTable();
+        loadInputValues();
+        bindEvents();
+        // 确保无口味单品库存键存在
+        ["每日慕斯", "主食餐盒", "鸡肉干"].forEach(item => {
+            const key = `${item}_标准`;
+            if (stock[key] === undefined) stock[key] = 0;
+        });
+        saveToLocal();
+    }
+
+    init();
+</script>
+</body>
+</html>
